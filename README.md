@@ -64,6 +64,41 @@ The starter uses a simple in-memory store for demo purposes. For production, rep
 - **Drizzle + SQLite** — lightweight, great for small apps
 - **Supabase** — hosted Postgres with auth built-in
 
+## What You Get
+
+- **`/`** — Landing page with pricing CTA
+- **`/register`** — Sign up with email + password
+- **`/login`** — Sign in
+- **`/dashboard`** — Protected page, shows subscription status
+- **`/pricing`** — Pricing page, click to pay with USDT via ChainPay
+
+## File Structure
+
+```
+src/
+├── app/
+│   ├── page.tsx              # Landing page
+│   ├── login/page.tsx        # Login
+│   ├── register/page.tsx     # Register
+│   ├── dashboard/page.tsx    # Protected dashboard
+│   ├── pricing/page.tsx      # Pricing + payment
+│   └── api/
+│       ├── auth/register/    # POST: create user
+│       ├── auth/login/       # POST: login → JWT
+│       ├── payment/create/   # POST: create ChainPay order
+│       └── webhooks/chainpay/ # POST: handle payment webhook
+└── lib/
+    ├── auth.ts               # JWT helpers
+    └── db.ts                 # In-memory store (swap for real DB)
+```
+
+## Customizing
+
+1. Replace `src/lib/db.ts` with Prisma + PostgreSQL for production
+2. Update plan prices in `src/app/api/payment/create/route.ts`
+3. Add your product features to `src/app/dashboard/page.tsx`
+4. Style with Tailwind to match your brand
+
 ## Powered by ChainPay
 
 Built with [ChainPay](https://chainpay.pro) — 0.8% fee, no KYC, global reach.
