@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   const sig = req.headers.get('x-chainpay-signature')
 
   // Verify HMAC signature
-  const expected = 'sha256=' + crypto
+  const expected = crypto
     .createHmac('sha256', process.env.CHAINPAY_WEBHOOK_SECRET || '')
     .update(body)
     .digest('hex')
@@ -20,8 +20,8 @@ export async function POST(req: NextRequest) {
   const event = JSON.parse(body)
 
   if (event.event === 'payment.completed') {
-    const { metadata, externalId } = event
-    const userId = metadata?.userId || externalId?.split('_')[0]
+    const { metadata, orderId } = event
+    const userId = metadata?.userId || orderId?.split('_')[0]
     const plan = metadata?.plan || 'monthly'
 
     if (userId) {

@@ -21,18 +21,18 @@
 ## Environment Variables
 
 ```
-CHAINPAY_API_KEY=sk_live_...
-CHAINPAY_WEBHOOK_SECRET=whsec_...
+CHAINPAY_API_KEY=sk_live_your_api_key
+CHAINPAY_WEBHOOK_SECRET=whsec_your_webhook_secret
 JWT_SECRET=your-random-secret
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
 ## How It Works
 
-1. User clicks "Subscribe" → POST /api/payment/create → ChainPay creates order
+1. User clicks "Subscribe" → POST /api/payment/create → ChainPay creates order (returns `orderId` + `checkoutUrl`)
 2. User redirected to ChainPay checkout (USDT QR code, 30min timer)
-3. User pays → ChainPay sends webhook → POST /api/webhooks/chainpay
-4. Webhook verified → subscription activated → user can access dashboard
+3. User pays → ChainPay sends `payment.completed` webhook → POST /api/webhooks/chainpay
+4. Webhook signature verified → subscription activated → user can access dashboard
 
 ## Project Structure
 
@@ -99,9 +99,19 @@ src/
 3. Add your product features to `src/app/dashboard/page.tsx`
 4. Style with Tailwind to match your brand
 
+## Webhook Configuration
+
+In your [ChainPay Dashboard](https://chainpay.pro/dashboard/settings), set the Webhook URL to:
+
+```
+https://yourdomain.com/api/webhooks/chainpay
+```
+
+ChainPay will send `payment.completed` events to this endpoint with HMAC-SHA256 signature verification.
+
 ## Powered by ChainPay
 
-Built with [ChainPay](https://chainpay.pro) — 0.8% fee, no KYC, global reach.
+Built with [ChainPay](https://chainpay.pro) — 0.8% platform fee + network settlement fee (TRC20 ~$1), no KYC, global reach.
 
 ---
 

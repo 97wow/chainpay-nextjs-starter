@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyToken } from '@/lib/auth'
 
 const PLANS = {
-  monthly: { amount: '9.00', label: 'Monthly Pro' },
-  annual: { amount: '90.00', label: 'Annual Pro' },
+  monthly: { amount: 9.00, label: 'Monthly Pro' },
+  annual: { amount: 90.00, label: 'Annual Pro' },
 }
 
 export async function POST(req: NextRequest) {
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
       amount: planConfig.amount,
       currency: 'USDT',
       chain: 'trc20',
-      externalId: `${payload.userId}_${plan}_${Date.now()}`,
+      orderId: `${payload.userId}_${plan}_${Date.now()}`,
       metadata: { userId: payload.userId, plan, email: payload.email },
     }),
   }).then(r => r.json())
