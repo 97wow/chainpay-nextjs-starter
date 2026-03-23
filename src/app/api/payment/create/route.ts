@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
   const payload = verifyToken(authHeader.slice(7))
   if (!payload) return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
 
-  const { plan = 'monthly' } = await req.json()
+  const { plan = 'monthly', appId } = await req.json()
   const planConfig = PLANS[plan as keyof typeof PLANS]
   if (!planConfig) return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
 
@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
       currency: 'USDT',
       chain: 'trc20',
       orderId: `${payload.userId}_${plan}_${Date.now()}`,
+      appId: appId || undefined,
       metadata: { userId: payload.userId, plan, email: payload.email },
     }),
   }).then(r => r.json())
