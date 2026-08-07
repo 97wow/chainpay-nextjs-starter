@@ -14,7 +14,7 @@ export default function PricingPage() {
     const res = await fetch('/api/payment/create', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan }),
+      body: JSON.stringify({ plan, checkoutId: crypto.randomUUID() }),
     })
     const data = await res.json()
     if (data.checkoutUrl) {

@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     .update(body)
     .digest('hex')
 
-  if (sig !== expected) {
+  if (!sig || sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
     console.warn('Invalid ChainPay webhook signature')
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -21,11 +21,17 @@ export async function POST(req: NextRequest) {
 
   if (event.event === 'payment.completed') {
     const { metadata, orderId } = event
+    if (!orderId || !db.webhookEvents.claim(`payment.completed:${orderId}`)) {
+      return NextResponse.json({ received: true, duplicate: true })
+    }
     const userId = metadata?.userId || orderId?.split('_')[0]
     const plan = metadata?.plan || 'monthly'
 
     if (userId) {
-      const expiresAt = new Date()
+      const user = db.users.findById(userId)
+      const expiresAt = user?.subscriptionExpiresAt && user.subscriptionExpiresAt > new Date()
+        ? new Date(user.subscriptionExpiresAt)
+        : new Date()
       if (plan === 'annual') {
         expiresAt.setFullYear(expiresAt.getFullYear() + 1)
       } else {

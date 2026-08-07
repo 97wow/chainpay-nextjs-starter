@@ -1,22 +1,17 @@
 # ChainPay Next.js Starter
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Next.js 14](https://img.shields.io/badge/Next.js-14-black)](https://nextjs.org/)
-[![ChainPay](https://img.shields.io/badge/ChainPay-Crypto%20Payments-blue)](https://chainpay.pro)
+一个可直接运行的 ChainPay 商户集成示例，包含登录、定价页、USDT 收款和 Webhook 验签。
 
-> Next.js starter with ChainPay crypto payments — auth + pricing + USDT in 5 minutes.
+## 已包含
 
-## Features
+- Next.js 16 App Router
+- 邮箱/JWT 示例认证
+- ChainPay 多应用 `appId` 路由
+- `Idempotency-Key` 与 `externalId` 防重复订单
+- HMAC-SHA256 Webhook 验签（恒定时间比较）
+- Webhook 事件幂等消费示例
 
-- **Google OAuth + JWT auth** — secure user authentication out of the box
-- **USDT TRC20 payments via ChainPay** — 0.8% fee, no KYC required
-- **Multi-app webhook routing support** — route webhooks to different apps via `appId`
-- **Pricing page** with monthly/annual toggle
-- **Dashboard** with payment history
-- **Webhook signature verification** — HMAC-SHA256 security
-- **TypeScript + Tailwind CSS** — fully typed, modern styling
-
-## Quick Start
+## 快速开始
 
 ```bash
 git clone https://github.com/97wow/chainpay-nextjs-starter
@@ -26,60 +21,41 @@ npm install
 npm run dev
 ```
 
-## Environment Variables
+## 环境变量
 
-| Variable | Description |
-|----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string (Neon recommended) |
-| `NEXTAUTH_SECRET` | Random secret for JWT signing |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
-| `CHAINPAY_API_KEY` | Your ChainPay merchant API key (from [chainpay.pro/dashboard](https://chainpay.pro/dashboard)) |
-| `CHAINPAY_WEBHOOK_SECRET` | App webhook secret (from [chainpay.pro/dashboard/apps](https://chainpay.pro/dashboard/apps)) |
+| 变量 | 说明 |
+|---|---|
+| `DATABASE_URL` | 生产环境使用的 PostgreSQL 连接串 |
+| `NEXTAUTH_SECRET` | JWT 签名随机密钥 |
+| `GOOGLE_CLIENT_ID` | 可选 Google OAuth Client ID |
+| `GOOGLE_CLIENT_SECRET` | 可选 Google OAuth Client Secret |
+| `CHAINPAY_API_KEY` | ChainPay 商户或应用 API Key |
+| `CHAINPAY_WEBHOOK_SECRET` | 应用 Webhook Secret |
 
-## ChainPay Setup
+API Key 和 Webhook Secret 的完整值只在创建或轮换时显示一次，请立即保存到密钥管理系统，不要提交到 Git。
 
-1. **Sign up** at [chainpay.pro](https://chainpay.pro)
-2. **Create an App** in Dashboard → Apps → New App
-3. **Set webhook URL** to `https://yourdomain.com/api/webhooks/chainpay`
-4. **Copy API Key and App Webhook Secret** to `.env.local`
+## ChainPay 配置
 
-## Webhook Events
+1. 在 [chainpay.pro](https://chainpay.pro) 注册并完成适用的风险审核。
+2. 在 Dashboard → Apps 创建应用。
+3. 将 Webhook URL 设置为 `https://yourdomain.com/api/webhooks/chainpay`。
+4. 生成应用 API Key，并保存 API Key 与 Webhook Secret。
 
-ChainPay sends webhook events to your configured endpoint. Currently supported:
+创建支付时，Starter 会为每次结账发送 `Idempotency-Key` 和同值 `externalId`。同一结账 ID 的安全重试会返回原订单，不会创建第二个收款地址。
 
-- **`payment.completed`** — triggered when a user has successfully paid
+## Webhook
 
-Webhook payload fields:
+当前处理 `payment.completed`。必须用原始请求体和 `X-ChainPay-Signature` 做 HMAC-SHA256 验签，并以 `event + orderId` 做幂等消费。
 
-| Field | Description |
-|-------|-------------|
-| `orderId` | Your original order ID |
-| `amount` | Payment amount |
-| `currency` | Payment currency (e.g., USDT) |
-| `chain` | Blockchain network (e.g., trc20) |
-| `netAmount` | Amount after platform fee |
-| `metadata` | Your custom metadata object |
+Starter 为了易读使用内存数据结构；生产环境必须把用户、结账 ID 和已消费 Webhook 事件写入数据库，并通过唯一索引保证并发幂等。
 
-All webhooks are signed with HMAC-SHA256. Verify the signature using your App Webhook Secret before processing.
+## 费用与审核
 
-## Pricing
-
-| Fee | Amount |
-|-----|--------|
-| Platform fee | 0.8% per transaction |
-| Settlement fee | ~$1 (TRC20), deducted from payout |
-| Monthly fees | None |
-| KYC required | No |
-
-## Tech Stack
-
-- [Next.js 14](https://nextjs.org/) (App Router)
-- [Tailwind CSS](https://tailwindcss.com/)
-- [Prisma](https://www.prisma.io/) + PostgreSQL
-- [NextAuth.js](https://next-auth.js.org/)
-- [ChainPay API](https://chainpay.pro)
+- 平台费：每笔 0.8%
+- 结算网络费：按链和实时网络情况从结算额扣除
+- 月费：无
+- 商户审核：风险分级，具体要求取决于地区、业务和交易规模
 
 ## License
 
-[MIT](LICENSE)
+MIT

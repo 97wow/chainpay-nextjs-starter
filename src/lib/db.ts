@@ -16,6 +16,7 @@ interface User {
 
 const users = new Map<string, User>()
 const usersByEmail = new Map<string, User>()
+const processedWebhookEvents = new Set<string>()
 
 export const db = {
   users: {
@@ -35,6 +36,13 @@ export const db = {
       if (!u) return null
       Object.assign(u, patch)
       return u
+    },
+  },
+  webhookEvents: {
+    claim(id: string) {
+      if (processedWebhookEvents.has(id)) return false
+      processedWebhookEvents.add(id)
+      return true
     },
   },
 }

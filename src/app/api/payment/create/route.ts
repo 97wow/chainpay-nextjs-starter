@@ -13,31 +13,35 @@ export async function POST(req: NextRequest) {
   const payload = verifyToken(authHeader.slice(7))
   if (!payload) return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
 
-  const { plan = 'monthly', appId } = await req.json()
+  const { plan = 'monthly', appId, checkoutId } = await req.json()
   const planConfig = PLANS[plan as keyof typeof PLANS]
   if (!planConfig) return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
+  if (typeof checkoutId !== 'string' || !/^[A-Za-z0-9_-]{8,128}$/.test(checkoutId)) {
+    return NextResponse.json({ error: 'Invalid checkoutId' }, { status: 400 })
+  }
 
   const order = await fetch('https://chainpay.pro/api/v1/orders', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${process.env.CHAINPAY_API_KEY}`,
       'Content-Type': 'application/json',
+      'Idempotency-Key': checkoutId,
     },
     body: JSON.stringify({
       amount: planConfig.amount,
       currency: 'USDT',
       chain: 'trc20',
-      orderId: `${payload.userId}_${plan}_${Date.now()}`,
+      externalId: checkoutId,
       appId: appId || undefined,
       metadata: { userId: payload.userId, plan, email: payload.email },
     }),
-  }).then(r => r.json())
+  }).then(async r => ({ ok: r.ok, data: await r.json() }))
 
-  if (order.error) return NextResponse.json({ error: 'Failed to create order' }, { status: 500 })
+  if (!order.ok || order.data.error) return NextResponse.json({ error: 'Failed to create order' }, { status: 502 })
 
   return NextResponse.json({
-    checkoutUrl: order.checkoutUrl,
-    orderId: order.orderId,
+    checkoutUrl: order.data.checkoutUrl,
+    orderId: order.data.orderId,
     amount: planConfig.amount,
     plan,
   })
