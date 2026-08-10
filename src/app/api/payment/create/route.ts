@@ -20,7 +20,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid checkoutId' }, { status: 400 })
   }
 
-  const order = await fetch('https://chainpay.pro/api/v1/orders', {
+  const appUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+  const returnUrl = new URL('/dashboard?payment=success', appUrl).toString()
+  const upstream = await fetch('https://chainpay.pro/api/v1/orders', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${process.env.CHAINPAY_API_KEY}`,
@@ -33,15 +35,22 @@ export async function POST(req: NextRequest) {
       chain: 'trc20',
       externalId: checkoutId,
       appId: appId || undefined,
-      metadata: { userId: payload.userId, plan, email: payload.email },
+      metadata: { userId: payload.userId, plan, email: payload.email, returnUrl },
     }),
-  }).then(async r => ({ ok: r.ok, data: await r.json() }))
+  })
+  const order = await upstream.json()
 
-  if (!order.ok || order.data.error) return NextResponse.json({ error: 'Failed to create order' }, { status: 502 })
+  if (!upstream.ok || order.error) {
+    const isConflict = upstream.status === 409 && order.error === 'IDEMPOTENCY_CONFLICT'
+    return NextResponse.json(
+      { error: isConflict ? 'Checkout ID was reused with different payment parameters' : 'Failed to create order' },
+      { status: isConflict ? 409 : 502 },
+    )
+  }
 
   return NextResponse.json({
-    checkoutUrl: order.data.checkoutUrl,
-    orderId: order.data.orderId,
+    checkoutUrl: order.checkoutUrl,
+    orderId: order.orderId,
     amount: planConfig.amount,
     plan,
   })

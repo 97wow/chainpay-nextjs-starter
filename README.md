@@ -41,7 +41,7 @@ API Key 和 Webhook Secret 的完整值只在创建或轮换时显示一次，�
 3. 将 Webhook URL 设置为 `https://yourdomain.com/api/webhooks/chainpay`。
 4. 生成应用 API Key，并保存 API Key 与 Webhook Secret。
 
-创建支付时，Starter 会为每次结账发送 `Idempotency-Key` 和同值 `externalId`。同一结账 ID 的安全重试会返回原订单，不会创建第二个收款地址。
+创建支付时，Starter 会为每次结账发送 `Idempotency-Key` 和同值 `externalId`，并通过 `metadata.returnUrl` 安全跳回商户站点。同一结账 ID 的相同请求会返回原订单；如果金额、套餐、链、应用或元数据发生变化，ChainPay 会返回 `409 IDEMPOTENCY_CONFLICT`，调用方应生成新的结账 ID。
 
 ## Webhook
 
