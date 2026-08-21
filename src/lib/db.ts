@@ -39,6 +39,9 @@ export const db = {
     },
   },
   webhookEvents: {
+    has(id: string) {
+      return processedWebhookEvents.has(id)
+    },
     claim(id: string) {
       if (processedWebhookEvents.has(id)) return false
       processedWebhookEvents.add(id)

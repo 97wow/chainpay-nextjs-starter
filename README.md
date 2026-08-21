@@ -10,6 +10,7 @@
 - `Idempotency-Key` 与 `externalId` 防重复订单
 - HMAC-SHA256 Webhook 验签（恒定时间比较）
 - Webhook 事件幂等消费示例
+- 可选双向业务回执：本地业务完成后向 ChainPay 发送签名确认
 
 ## 快速开始
 
@@ -31,6 +32,7 @@ npm run dev
 | `GOOGLE_CLIENT_SECRET` | 可选 Google OAuth Client Secret |
 | `CHAINPAY_API_KEY` | ChainPay 商户或应用 API Key |
 | `CHAINPAY_WEBHOOK_SECRET` | 应用 Webhook Secret |
+| `CHAINPAY_BASE_URL` | 可选，默认 `https://chainpay.pro` |
 
 API Key 和 Webhook Secret 的完整值只在创建或轮换时显示一次，请立即保存到密钥管理系统，不要提交到 Git。
 
@@ -46,6 +48,10 @@ API Key 和 Webhook Secret 的完整值只在创建或轮换时显示一次，�
 ## Webhook
 
 当前处理 `payment.completed`。必须用原始请求体和 `X-ChainPay-Signature` 做 HMAC-SHA256 验签，并以 `event + orderId` 做幂等消费。
+
+在 Dashboard 为应用启用“业务回执”后，Webhook 会携带 `receiptRequired: true`。商户服务必须先完成本地幂等事务，再向 `POST /api/v1/fulfillment-receipts` 提交 `fulfillment.completed`，并用同一个 Webhook Secret 对原始 JSON 计算 HMAC-SHA256，放入 `X-ChainPay-Fulfillment-Signature`。只有回执被 ChainPay 接受后才向原 Webhook 返回 200；回执失败应返回 500，让 ChainPay 安全重试。
+
+回执 ID 必须稳定且与本地订单唯一绑定。Webhook 重试时，即使本地业务已经完成，也应重新提交相同回执，绝不能重复增加余额或延长套餐。Agent 不得生成业务回执，也不得直接修改余额。
 
 Starter 为了易读使用内存数据结构；生产环境必须把用户、结账 ID 和已消费 Webhook 事件写入数据库，并通过唯一索引保证并发幂等。
 
