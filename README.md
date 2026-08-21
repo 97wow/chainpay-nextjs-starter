@@ -51,6 +51,8 @@ API Key 和 Webhook Secret 的完整值只在创建或轮换时显示一次，�
 
 在 Dashboard 为应用启用“业务回执”后，Webhook 会携带 `receiptRequired: true`。商户服务必须先完成本地幂等事务，再向 `POST /api/v1/fulfillment-receipts` 提交 `fulfillment.completed`，并用同一个 Webhook Secret 对原始 JSON 计算 HMAC-SHA256，放入 `X-ChainPay-Fulfillment-Signature`。只有回执被 ChainPay 接受后才向原 Webhook 返回 200；回执失败应返回 500，让 ChainPay 安全重试。
 
+自动化边界：客服或 LLM Agent 不得构造回执、读取 Webhook Secret 或直接修改余额。若业务回执超时，只能由 ChainPay 的受限内部处置器重放原始签名付款通知；本项目继续通过同一幂等事务处理重放并由商户服务器回签。
+
 回执 ID 必须稳定且与本地订单唯一绑定。Webhook 重试时，即使本地业务已经完成，也应重新提交相同回执，绝不能重复增加余额或延长套餐。Agent 不得生成业务回执，也不得直接修改余额。
 
 Starter 为了易读使用内存数据结构；生产环境必须把用户、结账 ID 和已消费 Webhook 事件写入数据库，并通过唯一索引保证并发幂等。
