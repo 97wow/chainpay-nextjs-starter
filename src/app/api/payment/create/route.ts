@@ -41,16 +41,21 @@ export async function POST(req: NextRequest) {
   const order = await upstream.json()
 
   if (!upstream.ok || order.error) {
+    const isUnavailable = upstream.status === 503 && order.error === 'PAYMENT_UNAVAILABLE'
+    const isSmall = upstream.status === 400 && order.error === 'AMOUNT_TOO_SMALL'
     const isConflict = upstream.status === 409 && order.error === 'IDEMPOTENCY_CONFLICT'
     return NextResponse.json(
-      { error: isConflict ? 'Checkout ID was reused with different payment parameters' : 'Failed to create order' },
-      { status: isConflict ? 409 : 502 },
+      { error: isConflict ? 'Checkout ID was reused with different payment parameters' : isUnavailable ? 'This payment network is temporarily unavailable. Please try later.' : isSmall ? 'Minimum payment is 1 USD.' : 'Failed to create order', code: isUnavailable ? 'PAYMENT_UNAVAILABLE' : isSmall ? 'AMOUNT_TOO_SMALL' : undefined },
+      { status: isConflict ? 409 : isUnavailable ? 503 : isSmall ? 400 : 502 },
     )
   }
 
   return NextResponse.json({
     checkoutUrl: order.checkoutUrl,
     orderId: order.orderId,
+    cryptoAmount: order.cryptoAmount, // Always display the exact invoice amount, including its matching suffix.
+    currency: order.currency,
+    chain: order.chain,
     amount: planConfig.amount,
     plan,
   })
