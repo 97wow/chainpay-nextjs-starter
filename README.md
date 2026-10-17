@@ -50,7 +50,7 @@ API Key 和 Webhook Secret 的完整值只在创建或轮换时显示一次，�
 
 ## Webhook
 
-当前处理 `payment.completed`。必须用原始请求体和 `X-ChainPay-Signature` 做 HMAC-SHA256 验签，并以 `event + orderId` 做幂等消费。
+当前处理 `payment.completed`。币安邮箱确认的付款会携带 `paymentEvidence`（`type: exchange_deposit`、`provider: binance`、`reference`、`amount`、`currency`、`confirmedAt`），此时 `txHash` 为 `null`，不能拼接区块浏览器链接。示例会在验签后通过商户订单 API 再核对持久化凭证，并继续以订单号幂等履约。必须用原始请求体和 `X-ChainPay-Signature` 做 HMAC-SHA256 验签，并以 `event + orderId` 做幂等消费。
 
 在 Dashboard 为应用启用“业务回执”后，Webhook 会携带 `receiptRequired: true`。商户服务必须先完成本地幂等事务，再向 `POST /api/v1/fulfillment-receipts` 提交 `fulfillment.completed`，并用同一个 Webhook Secret 对原始 JSON 计算 HMAC-SHA256，放入 `X-ChainPay-Fulfillment-Signature`。只有回执被 ChainPay 接受后才向原 Webhook 返回 200；回执失败应返回 500，让 ChainPay 安全重试。
 

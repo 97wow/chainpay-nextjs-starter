@@ -53,3 +53,14 @@ test('selected BEP20 reaches the gateway and a different response chain is rejec
   wrongChain = true;
   assert.equal((await route.POST(request('bep20'))).status, 502);
 });
+
+const evidence = load('src/lib/payment-evidence.ts');
+test('exchange proof is checked against stored merchant evidence and is never a fake chain hash', async () => {
+  const event = { orderId: 'cp-test', externalId: 'local-test', chain: 'bep20', currency: 'USDT', amount: '10', txHash: null,
+    paymentEvidence: { type: 'exchange_deposit', provider: 'binance', reference: 'binance-email-' + 'a'.repeat(40), amount: '10.000001', currency: 'USDT', confirmedAt: new Date().toISOString() } };
+  global.fetch = async () => Response.json({ ...event, status: 'completed', environment: 'live' });
+  await evidence.verifyExchangeDeposit(event);
+  global.fetch = async () => Response.json({ ...event, status: 'pending', environment: 'live' });
+  await assert.rejects(evidence.verifyExchangeDeposit(event));
+  await assert.rejects(evidence.verifyExchangeDeposit({ ...event, txHash: '0x' + 'a'.repeat(64) }));
+});
