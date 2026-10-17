@@ -46,11 +46,11 @@ API Key 和 Webhook Secret 的完整值只在创建或轮换时显示一次，�
 
 创建支付时，Starter 会为每次结账发送 `Idempotency-Key` 和同值 `externalId`，并通过 `metadata.returnUrl` 安全跳回商户站点。同一结账 ID 的相同请求会返回原订单；如果金额、套餐、链、应用或元数据发生变化，ChainPay 会返回 `409 IDEMPOTENCY_CONFLICT`，调用方应生成新的结账 ID。
 
-定价页根据能力接口展示可用网络，并将用户选择的 `trc20`、`erc20` 或 `bep20` 原样传给服务端；未知网络返回 400，不会退回其他网络。BEP20 当前仅开放给明确配置的运营商固定地址，普通商户不可启用。BSC 主网 chain ID 为 56，USDT 合约为 `0x55d398326f99059ff775485246999027b3197955`，代币精度为 18。客户须确保扣除提现手续费后，到账金额等于返回的 `cryptoAmount`。至少 15 次确认且区块 finalized 后才会发送完成事件。BSC 暂不提供托管派生、自动归集或自动退款。
+定价页根据能力接口展示可用网络，并将用户选择的 `trc20`、`erc20`、`bep20`、`arbitrum`、`optimism`、`polygon` 或 `avalanche` 原样传给服务端；未知网络返回 400，不会退回其他网络。BEP20 当前仅开放给明确配置的运营商固定地址，普通商户不可启用。BSC 主网 chain ID 为 56，USDT 合约为 `0x55d398326f99059ff775485246999027b3197955`，代币精度为 18。客户须确保扣除提现手续费后，到账金额等于返回的 `cryptoAmount`。至少 15 次确认且区块 finalized 后才会发送完成事件。BSC 暂不提供托管派生、自动归集或自动退款。
 
 ## Webhook
 
-当前处理 `payment.completed`。必须用原始请求体和 `X-ChainPay-Signature` 做 HMAC-SHA256 验签，并以 `event + orderId` 做幂等消费。
+当前处理 `payment.completed`。币安邮箱确认的付款会携带 `paymentEvidence`（`type: exchange_deposit`、`provider: binance`、`reference`、`amount`、`currency`、`confirmedAt`），此时 `txHash` 为 `null`，不能拼接区块浏览器链接。示例会在验签后通过商户订单 API 再核对持久化凭证，并继续以订单号幂等履约。必须用原始请求体和 `X-ChainPay-Signature` 做 HMAC-SHA256 验签，并以 `event + orderId` 做幂等消费。
 
 在 Dashboard 为应用启用“业务回执”后，Webhook 会携带 `receiptRequired: true`。商户服务必须先完成本地幂等事务，再向 `POST /api/v1/fulfillment-receipts` 提交 `fulfillment.completed`，并用同一个 Webhook Secret 对原始 JSON 计算 HMAC-SHA256，放入 `X-ChainPay-Fulfillment-Signature`。只有回执被 ChainPay 接受后才向原 Webhook 返回 200；回执失败应返回 500，让 ChainPay 安全重试。
 
@@ -70,3 +70,11 @@ Starter 为了易读使用内存数据结构；生产环境必须把用户、结
 ## License
 
 MIT
+
+### 自有 EVM 钱包与 USDT0
+
+能力接口的 `available` 决定能否建单；`displayName`、`tokenSymbol`、`chainId`、`tokenContract`、`tokenDecimals` 描述实际网络和代币。Arbitrum One、OP Mainnet、Polygon PoS 使用固定官方合约的 USDT0，API `currency` 继续使用 `USDT`。Avalanche C-Chain 使用原生 USDT，不接受旧 USDT.e。新增四条网络需在 `CHAINPAY_EVM_ENABLED_CHAINS` 中逐项启用；BEP20 继续使用 `CHAINPAY_BEP20_ENABLED=1`。
+
+自有钱包订单要求精确到账金额，等待 finalized 区块后完成。Ethereum 与其二层网络可能需要 15–30 分钟或更久。订单查询和付款 Webhook 同时返回网络元数据、`payAddress`、`cryptoAmount`、`receivedAmount` 与真实 `txHash`。示例先验 HMAC，再查询商户订单核对付款；无法核验时不发放订阅。旧币安邮件凭证仅适用于 Tron/BEP20，保留 `exchange_deposit` 类型，不冒充链上哈希。
+
+TRC20 自有钱包收款同样以 `confirmationSource: blockchain` 和 `exactAmountRequired: true` 返回。以固化区块中的成功 USDT 收据为准；Tron 交易哈希为不带 `0x` 的 64 位十六进制，地址与合约均为大小写敏感的 Base58。Starter 会通过商户订单接口复核这些字段与精确到账金额；旧 Binance 邮件证据仍按单独的兼容路径验证。

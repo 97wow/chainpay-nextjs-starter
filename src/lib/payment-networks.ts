@@ -1,7 +1,11 @@
 export const NETWORKS = {
-  trc20: 'TRON (TRC20)',
+  trc20: 'Tron (TRC20)',
   erc20: 'Ethereum (ERC20)',
   bep20: 'BNB Smart Chain (BEP20)',
+  arbitrum: 'Arbitrum One · USDT0',
+  optimism: 'OP Mainnet · USDT0',
+  polygon: 'Polygon PoS · USDT0',
+  avalanche: 'Avalanche C-Chain',
 } as const
 export type PaymentChain = keyof typeof NETWORKS
 
@@ -12,5 +16,6 @@ export async function availablePaymentNetworks(): Promise<PaymentChain[]> {
   if (!Array.isArray(data.pairs)) throw new Error('Invalid capabilities')
   return (Object.keys(NETWORKS) as PaymentChain[]).filter(chain =>
     (chain !== 'bep20' || process.env.CHAINPAY_BEP20_ENABLED === '1') &&
+    (['trc20','erc20','bep20'].includes(chain) || (process.env.CHAINPAY_EVM_ENABLED_CHAINS || '').split(',').map(v => v.trim()).includes(chain)) &&
     data.pairs.some((pair: { currency: string; chain: string; available: boolean }) => pair.currency === 'USDT' && pair.chain === chain && pair.available === true))
 }
