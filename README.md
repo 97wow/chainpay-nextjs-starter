@@ -76,3 +76,5 @@ MIT
 能力接口的 `available` 决定能否建单；`displayName`、`tokenSymbol`、`chainId`、`tokenContract`、`tokenDecimals` 描述实际网络和代币。Arbitrum One、OP Mainnet、Polygon PoS 使用固定官方合约的 USDT0，API `currency` 继续使用 `USDT`。Avalanche C-Chain 使用原生 USDT，不接受旧 USDT.e。新增四条网络需在 `CHAINPAY_EVM_ENABLED_CHAINS` 中逐项启用；BEP20 继续使用 `CHAINPAY_BEP20_ENABLED=1`。
 
 自有钱包订单要求精确到账金额，等待 finalized 区块后完成。Ethereum 与其二层网络可能需要 15–30 分钟或更久。订单查询和付款 Webhook 同时返回网络元数据、`payAddress`、`cryptoAmount`、`receivedAmount` 与真实 `txHash`。示例先验 HMAC，再查询商户订单核对付款；无法核验时不发放订阅。旧币安邮件凭证仅适用于 Tron/BEP20，保留 `exchange_deposit` 类型，不冒充链上哈希。
+
+TRC20 自有钱包收款同样以 `confirmationSource: blockchain` 和 `exactAmountRequired: true` 返回。以固化区块中的成功 USDT 收据为准；Tron 交易哈希为不带 `0x` 的 64 位十六进制，地址与合约均为大小写敏感的 Base58。Starter 会通过商户订单接口复核这些字段与精确到账金额；旧 Binance 邮件证据仍按单独的兼容路径验证。

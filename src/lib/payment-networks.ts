@@ -1,7 +1,7 @@
 export const NETWORKS = {
-  trc20: 'Tron',
-  erc20: 'Ethereum',
-  bep20: 'BNB Smart Chain',
+  trc20: 'Tron (TRC20)',
+  erc20: 'Ethereum (ERC20)',
+  bep20: 'BNB Smart Chain (BEP20)',
   arbitrum: 'Arbitrum One · USDT0',
   optimism: 'OP Mainnet · USDT0',
   polygon: 'Polygon PoS · USDT0',

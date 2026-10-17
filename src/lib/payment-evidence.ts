@@ -27,7 +27,8 @@ export async function verifyExchangeDeposit(event: Record<string, unknown>): Pro
     throw new Error('Exchange deposit does not match the stored payment')
 }
 
-const EVM_TOKENS: Record<string, { chainId: number; tokenContract: string; tokenDecimals: number; tokenSymbol: string }> = {
+const USDT_TOKENS: Record<string, { chainId: number | null; tokenContract: string; tokenDecimals: number; tokenSymbol: string }> = {
+  trc20: { chainId: null, tokenContract: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t', tokenDecimals: 6, tokenSymbol: 'USDT' },
   erc20: { chainId: 1, tokenContract: '0xdac17f958d2ee523a2206206994597c13d831ec7', tokenDecimals: 6, tokenSymbol: 'USDT' },
   bep20: { chainId: 56, tokenContract: '0x55d398326f99059ff775485246999027b3197955', tokenDecimals: 18, tokenSymbol: 'USDT' },
   arbitrum: { chainId: 42161, tokenContract: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9', tokenDecimals: 6, tokenSymbol: 'USDT0' },
@@ -43,9 +44,9 @@ function units(value: unknown): bigint {
 /** HMAC is verified by the route before this authenticated, read-only receipt check. */
 export async function verifyCompletedPayment(event: Record<string, unknown>): Promise<void> {
   if (event.paymentEvidence != null) return verifyExchangeDeposit(event)
-  const pinned = EVM_TOKENS[String(event.chain)]
+  const pinned = USDT_TOKENS[String(event.chain)]
   if (!pinned) return
-  if (event.currency !== 'USDT' || typeof event.txHash !== 'string' || !/^0x[a-f0-9]{64}$/i.test(event.txHash)) throw new Error('Invalid chain payment')
+  if (event.currency !== 'USDT' || typeof event.txHash !== 'string' || !(event.chain === 'trc20' ? /^[a-f0-9]{64}$/i : /^0x[a-f0-9]{64}$/i).test(event.txHash)) throw new Error('Invalid chain payment')
   const baseUrl = (process.env.CHAINPAY_BASE_URL || 'https://chainpay.pro').replace(/\/$/, '')
   const response = await fetch(`${baseUrl}/api/v1/orders/${encodeURIComponent(String(event.orderId))}`, {
     headers: { Authorization: `Bearer ${process.env.CHAINPAY_API_KEY || ''}` }, signal: AbortSignal.timeout(10000), redirect: 'error',
@@ -54,7 +55,7 @@ export async function verifyCompletedPayment(event: Record<string, unknown>): Pr
   const remote = await response.json()
   if (remote.status !== 'completed' || remote.environment !== 'live' || remote.paymentEvidence != null
     || ['orderId','externalId','chain','currency','amount','txHash','payAddress'].some(key => remote[key] !== event[key])
-    || typeof remote.payAddress !== 'string' || !/^0x[a-f0-9]{40}$/i.test(remote.payAddress)
+    || typeof remote.payAddress !== 'string' || !(event.chain === 'trc20' ? /^T[1-9A-HJ-NP-Za-km-z]{33}$/ : /^0x[a-f0-9]{40}$/i).test(remote.payAddress)
     || units(remote.receivedAmount) < units(remote.cryptoAmount) || units(remote.cryptoAmount) <= BigInt(0)
     || Object.entries(pinned).some(([key, value]) => remote[key] !== value || event[key] !== value)) throw new Error('Stored payment does not match the callback')
   if (remote.exactAmountRequired === true && units(remote.receivedAmount) !== units(remote.cryptoAmount)) throw new Error('Exact amount mismatch')

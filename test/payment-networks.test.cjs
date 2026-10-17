@@ -79,3 +79,13 @@ test('on-chain metadata is verified against the stored merchant invoice', async 
   global.fetch = async () => Response.json({...event,status:'completed',environment:'live',receivedAmount:'10',cryptoAmount:'10.000001',exactAmountRequired:true});
   await assert.rejects(evidence.verifyCompletedPayment(event));
 });
+
+test('self-custody Tron uses its own hash/address formats and exact confirmed token amount', async () => {
+  const event = { orderId:'tron-1',externalId:'local-1',chain:'trc20',currency:'USDT',amount:'10',txHash:'a'.repeat(64),payAddress:'TKTrv6sw6SaysX6UDa99Wb1bsjgVkvbUDh',chainId:null,tokenContract:'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',tokenDecimals:6,tokenSymbol:'USDT' };
+  const base = {...event,status:'completed',environment:'live',receivedAmount:'10.000001',cryptoAmount:'10.000001',exactAmountRequired:true};
+  global.fetch = async () => Response.json(base);
+  await evidence.verifyCompletedPayment(event);
+  for (const change of [{txHash:'0x'+event.txHash},{tokenContract:'other-token'},{payAddress:'TLGdFswB8L1VPJoM5qdpRcdQahSnhZTTuY'},{tokenDecimals:18}]) await assert.rejects(evidence.verifyCompletedPayment({...event,...change}));
+  global.fetch = async () => Response.json({...base,receivedAmount:'10'});
+  await assert.rejects(evidence.verifyCompletedPayment(event));
+});
