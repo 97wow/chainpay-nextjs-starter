@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyToken } from '@/lib/auth'
+import { availablePaymentNetworks, NETWORKS, type PaymentChain } from '@/lib/payment-networks'
 
 const PLANS = {
   monthly: { amount: 9.00, label: 'Monthly Pro' },
@@ -13,7 +14,13 @@ export async function POST(req: NextRequest) {
   const payload = verifyToken(authHeader.slice(7))
   if (!payload) return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
 
-  const { plan = 'monthly', appId, checkoutId } = await req.json()
+  const { plan = 'monthly', appId, checkoutId, chain = 'trc20' } = await req.json()
+  if (typeof chain !== 'string' || !Object.hasOwn(NETWORKS, chain)) return NextResponse.json({ error: 'Unsupported payment network' }, { status: 400 })
+  try {
+    if (!(await availablePaymentNetworks()).includes(chain as PaymentChain)) return NextResponse.json({ error: 'Payment network unavailable' }, { status: 503 })
+  } catch {
+    return NextResponse.json({ error: 'Payment network unavailable' }, { status: 503 })
+  }
   const planConfig = PLANS[plan as keyof typeof PLANS]
   if (!planConfig) return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
   if (typeof checkoutId !== 'string' || !/^[A-Za-z0-9_-]{8,128}$/.test(checkoutId)) {
@@ -32,7 +39,7 @@ export async function POST(req: NextRequest) {
     body: JSON.stringify({
       amount: planConfig.amount,
       currency: 'USDT',
-      chain: 'trc20',
+      chain,
       externalId: checkoutId,
       appId: appId || undefined,
       metadata: { userId: payload.userId, plan, email: payload.email, returnUrl },
@@ -44,8 +51,11 @@ export async function POST(req: NextRequest) {
     const isConflict = upstream.status === 409 && order.error === 'IDEMPOTENCY_CONFLICT'
     return NextResponse.json(
       { error: isConflict ? 'Checkout ID was reused with different payment parameters' : 'Failed to create order' },
-      { status: isConflict ? 409 : 502 },
+      { status: isConflict ? 409 : upstream.status === 503 ? 503 : 502 },
     )
+  }
+  if (order.chain !== chain || order.currency !== 'USDT' || typeof order.checkoutUrl !== 'string') {
+    return NextResponse.json({ error: 'Payment response does not match the selected network' }, { status: 502 })
   }
 
   return NextResponse.json({
@@ -53,5 +63,6 @@ export async function POST(req: NextRequest) {
     orderId: order.orderId,
     amount: planConfig.amount,
     plan,
+    chain: order.chain,
   })
 }
