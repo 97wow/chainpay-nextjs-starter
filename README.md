@@ -33,6 +33,7 @@ npm run dev
 | `CHAINPAY_API_KEY` | ChainPay 商户或应用 API Key |
 | `CHAINPAY_WEBHOOK_SECRET` | 应用 Webhook Secret |
 | `CHAINPAY_BASE_URL` | 可选，默认 `https://chainpay.pro` |
+| `CHAINPAY_BEP20_ENABLED` | 默认关闭。仅在 ChainPay 为本商户配置 BSC 固定收款地址后设为 `1` |
 
 API Key 和 Webhook Secret 的完整值只在创建或轮换时显示一次，请立即保存到密钥管理系统，不要提交到 Git。
 
@@ -44,6 +45,8 @@ API Key 和 Webhook Secret 的完整值只在创建或轮换时显示一次，�
 4. 生成应用 API Key，并保存 API Key 与 Webhook Secret。
 
 创建支付时，Starter 会为每次结账发送 `Idempotency-Key` 和同值 `externalId`，并通过 `metadata.returnUrl` 安全跳回商户站点。同一结账 ID 的相同请求会返回原订单；如果金额、套餐、链、应用或元数据发生变化，ChainPay 会返回 `409 IDEMPOTENCY_CONFLICT`，调用方应生成新的结账 ID。
+
+定价页根据能力接口展示可用网络，并将用户选择的 `trc20`、`erc20` 或 `bep20` 原样传给服务端；未知网络返回 400，不会退回其他网络。BEP20 当前仅开放给明确配置的运营商固定地址，普通商户不可启用。BSC 主网 chain ID 为 56，USDT 合约为 `0x55d398326f99059ff775485246999027b3197955`，代币精度为 18。客户须确保扣除提现手续费后，到账金额等于返回的 `cryptoAmount`。至少 15 次确认且区块 finalized 后才会发送完成事件。BSC 暂不提供托管派生、自动归集或自动退款。
 
 ## Webhook
 
