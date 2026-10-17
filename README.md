@@ -46,7 +46,7 @@ API Key 和 Webhook Secret 的完整值只在创建或轮换时显示一次，�
 
 创建支付时，Starter 会为每次结账发送 `Idempotency-Key` 和同值 `externalId`，并通过 `metadata.returnUrl` 安全跳回商户站点。同一结账 ID 的相同请求会返回原订单；如果金额、套餐、链、应用或元数据发生变化，ChainPay 会返回 `409 IDEMPOTENCY_CONFLICT`，调用方应生成新的结账 ID。
 
-定价页根据能力接口展示可用网络，并将用户选择的 `trc20`、`erc20` 或 `bep20` 原样传给服务端；未知网络返回 400，不会退回其他网络。BEP20 当前仅开放给明确配置的运营商固定地址，普通商户不可启用。BSC 主网 chain ID 为 56，USDT 合约为 `0x55d398326f99059ff775485246999027b3197955`，代币精度为 18。客户须确保扣除提现手续费后，到账金额等于返回的 `cryptoAmount`。至少 15 次确认且区块 finalized 后才会发送完成事件。BSC 暂不提供托管派生、自动归集或自动退款。
+定价页根据能力接口展示可用网络，并将用户选择的 `trc20`、`erc20`、`bep20`、`arbitrum`、`optimism`、`polygon` 或 `avalanche` 原样传给服务端；未知网络返回 400，不会退回其他网络。BEP20 当前仅开放给明确配置的运营商固定地址，普通商户不可启用。BSC 主网 chain ID 为 56，USDT 合约为 `0x55d398326f99059ff775485246999027b3197955`，代币精度为 18。客户须确保扣除提现手续费后，到账金额等于返回的 `cryptoAmount`。至少 15 次确认且区块 finalized 后才会发送完成事件。BSC 暂不提供托管派生、自动归集或自动退款。
 
 ## Webhook
 
@@ -70,3 +70,9 @@ Starter 为了易读使用内存数据结构；生产环境必须把用户、结
 ## License
 
 MIT
+
+### 自有 EVM 钱包与 USDT0
+
+能力接口的 `available` 决定能否建单；`displayName`、`tokenSymbol`、`chainId`、`tokenContract`、`tokenDecimals` 描述实际网络和代币。Arbitrum One、OP Mainnet、Polygon PoS 使用固定官方合约的 USDT0，API `currency` 继续使用 `USDT`。Avalanche C-Chain 使用原生 USDT，不接受旧 USDT.e。新增四条网络需在 `CHAINPAY_EVM_ENABLED_CHAINS` 中逐项启用；BEP20 继续使用 `CHAINPAY_BEP20_ENABLED=1`。
+
+自有钱包订单要求精确到账金额，等待 finalized 区块后完成。Ethereum 与其二层网络可能需要 15–30 分钟或更久。订单查询和付款 Webhook 同时返回网络元数据、`payAddress`、`cryptoAmount`、`receivedAmount` 与真实 `txHash`。示例先验 HMAC，再查询商户订单核对付款；无法核验时不发放订阅。旧币安邮件凭证仅适用于 Tron/BEP20，保留 `exchange_deposit` 类型，不冒充链上哈希。

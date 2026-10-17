@@ -38,7 +38,7 @@ test('unknown chain and disabled BEP20 cannot reach order creation', async () =>
   let orders = 0;
   global.fetch = async url => { if (String(url).endsWith('/orders')) orders++; return capabilityFetch(); };
   delete process.env.CHAINPAY_BEP20_ENABLED;
-  assert.equal((await route.POST(request('polygon'))).status, 400);
+  assert.equal((await route.POST(request('unknown-network'))).status, 400);
   assert.equal((await route.POST(request('bep20'))).status, 503);
   assert.equal(orders, 0);
 });
@@ -63,4 +63,19 @@ test('exchange proof is checked against stored merchant evidence and is never a 
   global.fetch = async () => Response.json({ ...event, status: 'pending', environment: 'live' });
   await assert.rejects(evidence.verifyExchangeDeposit(event));
   await assert.rejects(evidence.verifyExchangeDeposit({ ...event, txHash: '0x' + 'a'.repeat(64) }));
+});
+
+test('new networks are explicit opt-in and still require a live capability', async () => {
+  process.env.CHAINPAY_EVM_ENABLED_CHAINS = 'arbitrum,optimism,polygon,avalanche';
+  global.fetch = async () => Response.json({ pairs: ['arbitrum','optimism','polygon','avalanche'].map(chain => ({ chain, currency: 'USDT', available: chain !== 'polygon' })) });
+  assert.deepEqual(await networks.availablePaymentNetworks(), ['arbitrum','optimism','avalanche']);
+  delete process.env.CHAINPAY_EVM_ENABLED_CHAINS;
+});
+test('on-chain metadata is verified against the stored merchant invoice', async () => {
+  const event = { orderId:'evm-1',externalId:'local-1',chain:'optimism',currency:'USDT',amount:'10',txHash:'0x'+'a'.repeat(64),payAddress:'0x'+'b'.repeat(40),chainId:10,tokenContract:'0x01bff41798a0bcf287b996046ca68b395dbc1071',tokenDecimals:6,tokenSymbol:'USDT0' };
+  global.fetch = async () => Response.json({...event,status:'completed',environment:'live',receivedAmount:'10.000001',cryptoAmount:'10.000001',exactAmountRequired:true});
+  await evidence.verifyCompletedPayment(event);
+  await assert.rejects(evidence.verifyCompletedPayment({...event,tokenSymbol:'USDT'}));
+  global.fetch = async () => Response.json({...event,status:'completed',environment:'live',receivedAmount:'10',cryptoAmount:'10.000001',exactAmountRequired:true});
+  await assert.rejects(evidence.verifyCompletedPayment(event));
 });
