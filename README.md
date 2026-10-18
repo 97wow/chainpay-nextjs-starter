@@ -33,7 +33,7 @@ npm run dev
 | `CHAINPAY_API_KEY` | ChainPay 商户或应用 API Key |
 | `CHAINPAY_WEBHOOK_SECRET` | 应用 Webhook Secret |
 | `CHAINPAY_BASE_URL` | 可选，默认 `https://chainpay.pro` |
-| `CHAINPAY_BEP20_ENABLED` | 默认关闭。仅在 ChainPay 为本商户配置 BSC 固定收款地址后设为 `1` |
+| `CHAINPAY_BEP20_ENABLED` | 默认关闭。仅在 ChainPay 为本商户配置 BSC 收款且能力接口可用后设为 `1` |
 
 API Key 和 Webhook Secret 的完整值只在创建或轮换时显示一次，请立即保存到密钥管理系统，不要提交到 Git。
 
@@ -46,7 +46,7 @@ API Key 和 Webhook Secret 的完整值只在创建或轮换时显示一次，�
 
 创建支付时，Starter 会为每次结账发送 `Idempotency-Key` 和同值 `externalId`，并通过 `metadata.returnUrl` 安全跳回商户站点。同一结账 ID 的相同请求会返回原订单；如果金额、套餐、链、应用或元数据发生变化，ChainPay 会返回 `409 IDEMPOTENCY_CONFLICT`，调用方应生成新的结账 ID。
 
-定价页根据能力接口展示可用网络，并将用户选择的 `trc20`、`erc20`、`bep20`、`arbitrum`、`optimism`、`polygon` 或 `avalanche` 原样传给服务端；未知网络返回 400，不会退回其他网络。BEP20 当前仅开放给明确配置的运营商固定地址，普通商户不可启用。BSC 主网 chain ID 为 56，USDT 合约为 `0x55d398326f99059ff775485246999027b3197955`，代币精度为 18。客户须确保扣除提现手续费后，到账金额等于返回的 `cryptoAmount`。至少 15 次确认且区块 finalized 后才会发送完成事件。BSC 暂不提供托管派生、自动归集或自动退款。
+定价页根据能力接口展示可用网络，并将用户选择的 `trc20`、`erc20`、`bep20`、`arbitrum`、`optimism`、`polygon` 或 `avalanche` 原样传给服务端；未知网络返回 400，不会退回其他网络。BEP20 仅开放给明确配置的运营商，普通商户不可启用。BSC 主网 chain ID 为 56，USDT 合约为 `0x55d398326f99059ff775485246999027b3197955`，代币精度为 18。客户须确保扣除提现手续费后，到账金额等于返回的 `cryptoAmount`。至少 15 次确认且区块 finalized 后才会发送完成事件。BSC 固定地址模式不自动归集；独立地址模式的归集能力以 `automaticSettlement` 为准。两种模式均不自动退款。
 
 ## Webhook
 
@@ -82,3 +82,11 @@ MIT
 自有钱包订单要求精确到账金额，等待 finalized 区块后完成。Ethereum 与其二层网络可能需要 15–30 分钟或更久。订单查询和付款 Webhook 同时返回网络元数据、`payAddress`、`cryptoAmount`、`receivedAmount` 与真实 `txHash`。示例先验 HMAC，再查询商户订单核对付款；无法核验时不发放订阅。旧币安邮件凭证仅适用于 Tron/BEP20，保留 `exchange_deposit` 类型，不冒充链上哈希。
 
 TRC20 自有钱包收款同样以 `confirmationSource: blockchain` 和 `exactAmountRequired: true` 返回。以固化区块中的成功 USDT 收据为准；Tron 交易哈希为不带 `0x` 的 64 位十六进制，地址与合约均为大小写敏感的 Base58。Starter 会通过商户订单接口复核这些字段与精确到账金额；旧 Binance 邮件证据仍按单独的兼容路径验证。
+
+## 独立订单地址模式
+
+运营商可为 ERC20、TRC20、BEP20 启用 `receiveMode: dedicated`。新订单金额不添加识别尾数；每个订单获得从未展示过的独立地址，过期后也不分配给其他订单。旧订单继续使用原地址和原匹配规则。能力接口、建单、查单与付款回调返回 `minimumAmountRequired: true`、`exactAmountRequired: false`、`partialPaymentsSupported: true`、`addressReuse: never`、`settlementAddress`。独立收款地址与最终归集地址不同。
+
+实际到账款项在同一订单内累计，少付不发送付款完成回调。查询中的 `receivedAmount` 为已收金额，`remainingAmount` 为尚缺金额；补款只补差额并计入提币手续费。到账累计达到报价才完成，`cryptoAmount` 保持原报价，多付差额保留审计记录。示例回调会复核商户订单、网络、收款地址、真实交易哈希和累计金额。一次链上交易同时支付多个订单地址会进入人工核对，不自动猜测归属。
+
+归集先持久保存签名交易，再广播；重试使用同一交易哈希和签名字节。归集手续费由运营商原生币钱包支付，USDT 不扣额外加工费；按实时币价估算原生链费用，默认超过订单金额 1% 或 1 USD 则暂缓。不同地址各自转出仍分别产生链上费用。没有足够原生币、节点未通过校验或交易状态不确定时，不宣称归集完成。

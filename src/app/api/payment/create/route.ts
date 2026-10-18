@@ -64,5 +64,7 @@ export async function POST(req: NextRequest) {
     amount: planConfig.amount,
     plan,
     chain: order.chain,
+    receiveMode: order.receiveMode,
+    cryptoAmount: order.cryptoAmount,
   })
 }

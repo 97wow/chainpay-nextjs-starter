@@ -89,3 +89,14 @@ test('self-custody Tron uses its own hash/address formats and exact confirmed to
   global.fetch = async () => Response.json({...base,receivedAmount:'10'});
   await assert.rejects(evidence.verifyCompletedPayment(event));
 });
+
+test('dedicated checkout verifies aggregate receipts and refuses altered invoice policy', async () => {
+  const event={orderId:'dedicated-1',externalId:'local-1',chain:'bep20',currency:'USDT',amount:'2',cryptoAmount:'2',receivedAmount:'2.05',txHash:'0x'+'a'.repeat(64),
+    payAddress:'0x'+'b'.repeat(40),settlementAddress:'0x'+'c'.repeat(40),chainId:56,tokenContract:'0x55d398326f99059ff775485246999027b3197955',tokenDecimals:18,tokenSymbol:'USDT',
+    receiveMode:'dedicated',confirmationSource:'blockchain',requiresFinalizedBlock:true,exactAmountRequired:false,minimumAmountRequired:true,partialPaymentsSupported:true,addressReuse:'never'};
+  const base={...event,status:'completed',environment:'live'};
+  global.fetch=async()=>Response.json(base);await evidence.verifyCompletedPayment(event);
+  for(const change of [{receivedAmount:'2.06'},{receivedAmount:'1.99'},{cryptoAmount:'2.01'},{settlementAddress:event.payAddress},{addressReuse:'allowed'},{receiveMode:'operator_fixed'}]){
+    global.fetch=async()=>Response.json({...base,...change});await assert.rejects(evidence.verifyCompletedPayment(event));
+  }
+});

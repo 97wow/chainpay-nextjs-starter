@@ -53,6 +53,15 @@ export async function verifyCompletedPayment(event: Record<string, unknown>): Pr
   })
   if (!response.ok) throw new Error('Cannot verify payment')
   const remote = await response.json()
+  if (remote.receiveMode === 'dedicated' || event.receiveMode === 'dedicated') {
+    for (const value of [remote,event]) {
+      if (value.receiveMode !== 'dedicated' || value.confirmationSource !== 'blockchain' || value.requiresFinalizedBlock !== true
+        || value.exactAmountRequired !== false || value.minimumAmountRequired !== true || value.partialPaymentsSupported !== true
+        || value.addressReuse !== 'never') throw new Error('Invalid dedicated payment metadata')
+    }
+    if (remote.settlementAddress !== event.settlementAddress || units(remote.cryptoAmount) !== units(event.cryptoAmount)
+      || units(remote.receivedAmount) !== units(event.receivedAmount)) throw new Error('Dedicated payment amount mismatch')
+  }
   if (remote.status !== 'completed' || remote.environment !== 'live' || remote.paymentEvidence != null
     || ['orderId','externalId','chain','currency','amount','txHash','payAddress'].some(key => remote[key] !== event[key])
     || typeof remote.payAddress !== 'string' || !(event.chain === 'trc20' ? /^T[1-9A-HJ-NP-Za-km-z]{33}$/ : /^0x[a-f0-9]{40}$/i).test(remote.payAddress)
