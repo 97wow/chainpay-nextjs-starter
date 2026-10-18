@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import crypto from 'crypto'
+import { verifyCompletedPayment } from '@/lib/payment-evidence'
 
 async function sendFulfillmentReceipt(event: Record<string, unknown>) {
   const orderId = String(event.orderId || '')
@@ -53,6 +54,7 @@ export async function POST(req: NextRequest) {
   const event = JSON.parse(body)
 
   if (event.event === 'payment.completed') {
+    await verifyCompletedPayment(event)
     const { metadata, orderId } = event
     if (!orderId) return NextResponse.json({ error: 'Missing order ID' }, { status: 400 })
     const eventKey = `payment.completed:${orderId}`
